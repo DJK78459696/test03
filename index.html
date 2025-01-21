@@ -5,12 +5,75 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>2025 行事曆</title>
     <style>
-        /* CSS省略... */
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #month-selector {
+            margin: 20px 0;
+            text-align: center;
+        }
+        select {
+            font-size: 16px;
+            padding: 5px 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            text-align: center;
+            padding: 10px;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        td {
+            height: 100px;
+            vertical-align: top;
+            position: relative;
+        }
+        .date {
+            font-weight: bold;
+            color: #333;
+        }
+        .event {
+            margin-top: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        #add-event-modal, #delete-event-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border: 1px solid #ccc;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+        .modal-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
     <h1 style="text-align: center;">2025 行事曆</h1>
 
+    <!-- 月份選擇器 -->
     <div id="month-selector">
         <label for="month">選擇月份：</label>
         <select id="month" onchange="changeMonth()">
@@ -34,6 +97,7 @@
         <button onclick="openDeleteEventModal()">刪除工作</button>
     </div>
 
+    <!-- 行事曆表格 -->
     <table>
         <thead>
             <tr>
@@ -67,16 +131,28 @@
         <button onclick="closeModal('add-event-modal')">取消</button>
     </div>
 
+    <!-- 刪除工作視窗 -->
+    <div id="delete-event-modal">
+        <h3>刪除工作</h3>
+        <label for="delete-event">選擇要刪除的工作:</label>
+        <select id="delete-event"></select>
+        <br><br>
+        <button onclick="deleteEvent()">刪除</button>
+        <button onclick="closeModal('delete-event-modal')">取消</button>
+    </div>
+
+    <div class="modal-background" id="modal-background" style="display: none;"></div>
+
     <script>
         let events = []; // 存儲所有工作事件
 
         // 建立行事曆
         function createCalendar(year, month) {
             const calendarBody = document.getElementById("calendar-body");
-            calendarBody.innerHTML = "";
+            calendarBody.innerHTML = ""; // 清空內容
 
-            const firstDay = new Date(year, month, 1).getDay();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const firstDay = new Date(year, month, 1).getDay(); // 取得該月第一天的星期數字
+            const daysInMonth = new Date(year, month + 1, 0).getDate(); // 取得該月的天數
 
             let date = 1;
             let row = document.createElement("tr");
@@ -114,7 +190,7 @@
                 for (let i = 0; i < 7; i++) {
                     if (date > daysInMonth) {
                         calendarBody.appendChild(row);
-                        return;
+                        return; // 完成日曆
                     }
 
                     const cell = document.createElement("td");
@@ -140,6 +216,33 @@
             }
         }
 
+        function openAddEventModal() {
+            document.getElementById("modal-background").style.display = "block";
+            document.getElementById("add-event-modal").style.display = "block";
+        }
+
+        function openDeleteEventModal() {
+            const deleteEventSelect = document.getElementById("delete-event");
+            deleteEventSelect.innerHTML = ""; // 清空選項
+
+            // 更新選項
+            events.forEach((event, index) => {
+                const option = document.createElement("option");
+                option.value = index;
+                option.textContent = `日期: ${event.date}, 月份: ${event.month + 1}, 工作內容: ${event.text}`;
+                deleteEventSelect.appendChild(option);
+            });
+
+            document.getElementById("modal-background").style.display = "block";
+            document.getElementById("delete-event-modal").style.display = "block";
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = "none";
+            document.getElementById("modal-background").style.display = "none";
+        }
+
+        // 新增工作到日曆
         function addEventToCalendar() {
             const date = new Date(document.getElementById("event-date").value).getDate();
             const month = new Date(document.getElementById("event-date").value).getMonth();
@@ -147,11 +250,21 @@
             const color = document.getElementById("event-color").value;
 
             if (date && text) {
-                // 保存到 Google 試算表
-                google.script.run.addEventToSheet(date, month, text, color);
                 events.push({ date, month, text, color });
-                createCalendar(2025, month);
+                createCalendar(2025, month); // 更新日曆
                 closeModal('add-event-modal');
+            }
+        }
+
+        // 刪除選中的工作
+        function deleteEvent() {
+            const deleteEventSelect = document.getElementById("delete-event");
+            const selectedIndex = deleteEventSelect.value;
+
+            if (selectedIndex !== "") {
+                events.splice(selectedIndex, 1); // 刪除選中的工作
+                createCalendar(2025, document.getElementById("month").value); // 更新日曆
+                closeModal('delete-event-modal');
             }
         }
 
@@ -160,28 +273,8 @@
             createCalendar(2025, selectedMonth);
         }
 
-        function closeModal(modalId) {
-            document.getElementById(modalId).style.display = "none";
-        }
-
-        // 讀取 Google 試算表中的事件
-        function loadEvents() {
-            google.script.run.withSuccessHandler(function(response) {
-                events = response.map(event => ({
-                    date: event[0],
-                    month: event[1] - 1, // 月份調整
-                    text: event[2],
-                    color: event[3]
-                }));
-                createCalendar(2025, document.getElementById("month").value);
-            }).getEvents();
-        }
-
-        // 初始化顯示一月並讀取事件
-        window.onload = function() {
-            loadEvents();
-            createCalendar(2025, 0);
-        }
+        // 初始化顯示一月
+        createCalendar(2025, 0);
     </script>
 </body>
 </html>
