@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2025 行事曆</title>
+    <style>
+        /* CSS省略... */
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center;">2025 行事曆</h1>
+
+    <div id="month-selector">
+        <label for="month">選擇月份：</label>
+        <select id="month" onchange="changeMonth()">
+            <option value="0">一月</option>
+            <option value="1">二月</option>
+            <option value="2">三月</option>
+            <option value="3">四月</option>
+            <option value="4">五月</option>
+            <option value="5">六月</option>
+            <option value="6">七月</option>
+            <option value="7">八月</option>
+            <option value="8">九月</option>
+            <option value="9">十月</option>
+            <option value="10">十一月</option>
+            <option value="11">十二月</option>
+        </select>
+    </div>
+
+    <div style="text-align: center;">
+        <button onclick="openAddEventModal()">新增工作</button>
+        <button onclick="openDeleteEventModal()">刪除工作</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>星期日</th>
+                <th>星期一</th>
+                <th>星期二</th>
+                <th>星期三</th>
+                <th>星期四</th>
+                <th>星期五</th>
+                <th>星期六</th>
+            </tr>
+        </thead>
+        <tbody id="calendar-body">
+            <!-- 日曆內容會透過 JavaScript 生成 -->
+        </tbody>
+    </table>
+
+    <!-- 新增工作視窗 -->
+    <div id="add-event-modal">
+        <h3>新增工作</h3>
+        <label for="event-date">選擇日期:</label>
+        <input type="date" id="event-date">
+        <br><br>
+        <label for="event-text">工作內容:</label>
+        <input type="text" id="event-text">
+        <br><br>
+        <label for="event-color">選擇文字顏色:</label>
+        <input type="color" id="event-color" value="#007BFF">
+        <br><br>
+        <button onclick="addEventToCalendar()">送出</button>
+        <button onclick="closeModal('add-event-modal')">取消</button>
+    </div>
+
+    <script>
+        let events = []; // 存儲所有工作事件
+
+        // 建立行事曆
+        function createCalendar(year, month) {
+            const calendarBody = document.getElementById("calendar-body");
+            calendarBody.innerHTML = "";
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            let date = 1;
+            let row = document.createElement("tr");
+
+            // 產生第一排
+            for (let i = 0; i < 7; i++) {
+                if (i < firstDay) {
+                    row.appendChild(document.createElement("td"));
+                } else {
+                    const cell = document.createElement("td");
+                    const dayCell = document.createElement("div");
+                    dayCell.className = "date";
+                    dayCell.textContent = date;
+                    cell.appendChild(dayCell);
+
+                    // 顯示該日的事件
+                    const dayEvents = events.filter(event => event.date === date && event.month === month);
+                    dayEvents.forEach(event => {
+                        const eventDiv = document.createElement("div");
+                        eventDiv.className = "event";
+                        eventDiv.textContent = event.text;
+                        eventDiv.style.color = event.color;
+                        cell.appendChild(eventDiv);
+                    });
+
+                    row.appendChild(cell);
+                    date++;
+                }
+            }
+            calendarBody.appendChild(row);
+
+            // 產生接下來的排程
+            while (date <= daysInMonth) {
+                row = document.createElement("tr");
+                for (let i = 0; i < 7; i++) {
+                    if (date > daysInMonth) {
+                        calendarBody.appendChild(row);
+                        return;
+                    }
+
+                    const cell = document.createElement("td");
+                    const dayCell = document.createElement("div");
+                    dayCell.className = "date";
+                    dayCell.textContent = date;
+                    cell.appendChild(dayCell);
+
+                    // 顯示該日的事件
+                    const dayEvents = events.filter(event => event.date === date && event.month === month);
+                    dayEvents.forEach(event => {
+                        const eventDiv = document.createElement("div");
+                        eventDiv.className = "event";
+                        eventDiv.textContent = event.text;
+                        eventDiv.style.color = event.color;
+                        cell.appendChild(eventDiv);
+                    });
+
+                    row.appendChild(cell);
+                    date++;
+                }
+                calendarBody.appendChild(row);
+            }
+        }
+
+        function addEventToCalendar() {
+            const date = new Date(document.getElementById("event-date").value).getDate();
+            const month = new Date(document.getElementById("event-date").value).getMonth();
+            const text = document.getElementById("event-text").value;
+            const color = document.getElementById("event-color").value;
+
+            if (date && text) {
+                // 保存到 Google 試算表
+                google.script.run.addEventToSheet(date, month, text, color);
+                events.push({ date, month, text, color });
+                createCalendar(2025, month);
+                closeModal('add-event-modal');
+            }
+        }
+
+        function changeMonth() {
+            const selectedMonth = parseInt(document.getElementById("month").value);
+            createCalendar(2025, selectedMonth);
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = "none";
+        }
+
+        // 讀取 Google 試算表中的事件
+        function loadEvents() {
+            google.script.run.withSuccessHandler(function(response) {
+                events = response.map(event => ({
+                    date: event[0],
+                    month: event[1] - 1, // 月份調整
+                    text: event[2],
+                    color: event[3]
+                }));
+                createCalendar(2025, document.getElementById("month").value);
+            }).getEvents();
+        }
+
+        // 初始化顯示一月並讀取事件
+        window.onload = function() {
+            loadEvents();
+            createCalendar(2025, 0);
+        }
+    </script>
+</body>
+</html>
